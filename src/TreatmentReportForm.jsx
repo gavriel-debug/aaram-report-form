@@ -130,6 +130,7 @@ function buildPdfTemplate(d) {
       <div style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;"><strong style="color:#475569;display:block;margin-bottom:3px;">מס' מזהה לקוח:</strong>${esc(d.client_id)}</div>
       <div style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;"><strong style="color:#475569;display:block;margin-bottom:3px;">כתובת:</strong>${esc(d.address)}</div>
       <div style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;"><strong style="color:#475569;display:block;margin-bottom:3px;">טלפון:</strong>${esc(d.phone)}</div>
+      <div style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;"><strong style="color:#475569;display:block;margin-bottom:3px;">מייל:</strong>${esc(d.customer_email)}</div>
       <div style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;grid-column:span 2;"><strong style="color:#475569;display:block;margin-bottom:3px;">מאשר הדו"ח:</strong>${esc(d.approver)}</div>
     </div>
 
@@ -243,6 +244,7 @@ const EMPTY = {
   client_id: "",
   address: "",
   phone: "",
+  customer_email: "",
   approver: "",
   manufacturer: "",
   model: "",
@@ -360,11 +362,13 @@ export default function TreatmentReportForm() {
             const next = { ...f };
             [
               "company_name", "report_number", "treatment_type", "client_name", "client_id",
-              "address", "phone", "approver", "manufacturer", "model",
+              "address", "phone", "customer_email", "approver", "manufacturer", "model",
               "serial_number", "call_nature",
             ].forEach((k) => {
               if (data[k] !== undefined && data[k] !== null && data[k] !== "") next[k] = data[k];
             });
+            const emailValue = data.customer_email || data.email || data.client_email;
+            if (emailValue) next.customer_email = emailValue;
             return next;
           });
         } catch {
@@ -471,6 +475,7 @@ export default function TreatmentReportForm() {
               <div><label className={labelCls}>מס' מזהה לקוח</label><input value={form.client_id} onChange={set("client_id")} placeholder="מספר לקוח" className={inputCls} /></div>
               <div><label className={labelCls}>כתובת</label><input value={form.address} onChange={set("address")} placeholder="עיר, רחוב..." className={inputCls} /></div>
               <div><label className={labelCls}>טלפון</label><input type="tel" value={form.phone} onChange={set("phone")} placeholder="מספר טלפון" className={inputCls} /></div>
+              <div><label className={labelCls}>מייל</label><input type="email" value={form.customer_email} onChange={set("customer_email")} placeholder="name@example.com" className={inputCls} /></div>
               <div><label className={labelCls}>מאשר הדו"ח</label><input value={form.approver} onChange={set("approver")} placeholder="שם המאשר" className={inputCls} /></div>
             </div>
           </section>
