@@ -4,6 +4,7 @@ import jsPDF from "jspdf";
 
 const OPEN_WEBHOOK_URL = "https://hook.eu1.make.com/urdv6soafdq8im88v5pa87j0jp0gjhvx";
 const TARGET_WEBHOOK = "https://hook.eu1.make.com/1ukn154fochpe0xprtqj2be2stujtjed";
+const DEFAULT_COMPANY_NAME = "קבוצת א.א.רם איירנט";
 
 /* ====================== פאד חתימה (canvas מקורי, ללא ספרייה) ====================== */
 
@@ -104,7 +105,7 @@ function buildPdfTemplate(d) {
   <div dir="rtl" style="width:794px;padding:40px;background:#ffffff;font-family:'Heebo',system-ui,-apple-system,sans-serif;color:#1e293b;box-sizing:border-box;">
     <div style="background:#0f172a;color:#fff;padding:25px;border-radius:12px;margin-bottom:25px;display:flex;justify-content:space-between;align-items:center;">
       <div>
-        <h1 style="margin:0 0 4px 0;font-size:24px;font-weight:900;letter-spacing:-0.5px;">קבוצת א.א.רם איירנט</h1>
+        <h1 style="margin:0 0 4px 0;font-size:24px;font-weight:900;letter-spacing:-0.5px;">${esc(d.company_name || DEFAULT_COMPANY_NAME)}</h1>
         <p style="margin:0;color:#94a3b8;font-size:14px;font-weight:500;">טכנולוגיות אוויר דחוס בע"מ - טופס דיווח מקוון</p>
       </div>
       <div style="display:flex;gap:10px;">
@@ -231,6 +232,7 @@ async function generatePdfBase64(data) {
 /* ====================== הטופס ====================== */
 
 const EMPTY = {
+  company_name: DEFAULT_COMPANY_NAME,
   report_number: "",
   treatment_type: "טיפול שוטף",
   client_name: "",
@@ -268,15 +270,35 @@ export default function TreatmentReportForm() {
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
+  const buildDeliveryFormUrl = (serviceCallNumber) => {
+    const params = new URLSearchParams(window.location.search);
+    const nextUrl = new URL(window.location.href);
+    const company = params.get("company");
+
+    nextUrl.search = "";
+    nextUrl.hash = "";
+    nextUrl.searchParams.set("form", "delivery");
+    nextUrl.searchParams.set("service_call", serviceCallNumber || params.get("recordid") || "");
+    if (company) nextUrl.searchParams.set("company", company);
+
+    return nextUrl.toString();
+  };
+
   // שליפת נתונים ראשונית מהוובהוק
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const recordid = params.get("recordid") || "";
+    const tenantid = params.get("tenantid") || params.get("tanantid") || "";
+
+    if (!recordid && !tenantid) return;
+
     fetch(OPEN_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        recordid: params.get("recordid") || "",
-        tanantid: params.get("tanantid") || "",
+        recordid,
+        tenantid,
+        tanantid: tenantid,
       }),
     })
       .then((res) => res.text())
@@ -286,7 +308,7 @@ export default function TreatmentReportForm() {
           setForm((f) => {
             const next = { ...f };
             [
-              "report_number", "treatment_type", "client_name", "client_id",
+              "company_name", "report_number", "treatment_type", "client_name", "client_id",
               "address", "phone", "approver", "manufacturer", "model",
               "serial_number", "call_nature",
             ].forEach((k) => {
@@ -329,7 +351,12 @@ export default function TreatmentReportForm() {
         body: JSON.stringify(payload),
       });
 
-      alert(response.ok ? 'הדו"ח והמסמך נשלחו בהצלחה!' : 'שגיאה בשליחת הדו"ח. אנא נסה שוב.');
+      if (response.ok) {
+        alert('הדו"ח והמסמך נשלחו בהצלחה! כעת נפתח טופס תעודת משלוח.');
+        window.location.assign(buildDeliveryFormUrl(payload.report_number));
+      } else {
+        alert('שגיאה בשליחת הדו"ח. אנא נסה שוב.');
+      }
     } catch (err) {
       console.error("Error submitting form:", err);
       alert("אירעה שגיאה בתהליך עיבוד הטופס.");
@@ -345,7 +372,7 @@ export default function TreatmentReportForm() {
         <div className="bg-slate-900 text-white rounded-t-2xl p-8 relative overflow-hidden shadow-lg">
           <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
             <div>
-              <h1 className="text-3xl font-black mb-1">קבוצת א.א.רם איירנט</h1>
+              <h1 className="text-3xl font-black mb-1">{form.company_name}</h1>
               <p className="text-slate-400 font-medium">טכנולוגיות אוויר דחוס בע"מ - טופס דיווח מקוון</p>
             </div>
             <div className="flex gap-4 w-full md:w-auto">
