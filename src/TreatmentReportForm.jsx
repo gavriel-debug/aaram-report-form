@@ -4,6 +4,8 @@ import jsPDF from "jspdf";
 
 const OPEN_WEBHOOK_URL = "https://hook.eu1.make.com/urdv6soafdq8im88v5pa87j0jp0gjhvx";
 const TARGET_WEBHOOK = "https://hook.eu1.make.com/1ukn154fochpe0xprtqj2be2stujtjed";
+const DELIVERY_OPEN_WEBHOOK_URL = "https://hook.eu1.make.com/szndn2sqfmg0jpc53cisxb156sr47ssw";
+const DELIVERY_PREFILL_PREFIX = "delivery-prefill:";
 const DEFAULT_COMPANY_NAME = "קבוצת א.א.רם איירנט";
 
 /* ====================== פאד חתימה (canvas מקורי, ללא ספרייה) ====================== */
@@ -270,7 +272,7 @@ export default function TreatmentReportForm() {
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  const buildDeliveryFormUrl = (serviceCallNumber) => {
+  const buildDeliveryFormUrl = (serviceCallNumber, hasPrefill = false) => {
     const params = new URLSearchParams(window.location.search);
     const nextUrl = new URL(window.location.href);
     const company = params.get("company");
@@ -280,8 +282,42 @@ export default function TreatmentReportForm() {
     nextUrl.searchParams.set("form", "delivery");
     nextUrl.searchParams.set("service_call", serviceCallNumber || params.get("recordid") || "");
     if (company) nextUrl.searchParams.set("company", company);
+    if (hasPrefill) nextUrl.searchParams.set("prefill", "1");
 
     return nextUrl.toString();
+  };
+
+  const prepareDeliveryFormData = async (serviceCallNumber) => {
+    if (!serviceCallNumber) return false;
+
+    const params = new URLSearchParams(window.location.search);
+    const company = params.get("company") || "airnet";
+
+    try {
+      const response = await fetch(DELIVERY_OPEN_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          form_type: "delivery_certificate_open",
+          source: "treatment_report_submit",
+          service_call_number: serviceCallNumber,
+          company,
+        }),
+      });
+
+      const text = await response.text();
+      if (!response.ok || !text) return false;
+
+      const data = JSON.parse(text);
+      sessionStorage.setItem(
+        `${DELIVERY_PREFILL_PREFIX}${serviceCallNumber}`,
+        JSON.stringify({ data, saved_at: new Date().toISOString() })
+      );
+      return true;
+    } catch (err) {
+      console.warn("לא הצלחנו להכין את נתוני תעודת המשלוח:", err);
+      return false;
+    }
   };
 
   // שליפת נתונים ראשונית מהוובהוק
@@ -352,8 +388,10 @@ export default function TreatmentReportForm() {
       });
 
       if (response.ok) {
+        const serviceCallNumber = payload.report_number || new URLSearchParams(window.location.search).get("recordid") || "";
+        const hasDeliveryPrefill = await prepareDeliveryFormData(serviceCallNumber);
         alert('הדו"ח והמסמך נשלחו בהצלחה! כעת נפתח טופס תעודת משלוח.');
-        window.location.assign(buildDeliveryFormUrl(payload.report_number));
+        window.location.assign(buildDeliveryFormUrl(serviceCallNumber, hasDeliveryPrefill));
       } else {
         alert('שגיאה בשליחת הדו"ח. אנא נסה שוב.');
       }

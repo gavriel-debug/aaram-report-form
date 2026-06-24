@@ -4,6 +4,7 @@ import jsPDF from "jspdf";
 
 const DELIVERY_OPEN_WEBHOOK_URL = "https://hook.eu1.make.com/szndn2sqfmg0jpc53cisxb156sr47ssw";
 const DELIVERY_SUBMIT_WEBHOOK_URL = "https://hook.eu1.make.com/bptpucgrbjofxo3lkk2yv64vy327dxdv";
+const DELIVERY_PREFILL_PREFIX = "delivery-prefill:";
 
 const COMPANY_CONFIG = {
   airnet: {
@@ -122,6 +123,7 @@ const emptyDelivery = {
   customer_name: "",
   customer_address: "",
   customer_phone: "",
+  customer_email: "",
   company_name: "",
   recipient_name: "",
   delivery_agent: "",
@@ -159,6 +161,28 @@ const getCurrentDateParts = () => {
     delivery_time: now.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }),
   };
 };
+
+const mapDeliveryResponseToForm = (data, current) => ({
+  ...current,
+  company_name: getValue(data, ["company_name", "company"], current.company_name),
+  service_call_number: getValue(
+    data,
+    ["service_call_number", "service_call", "service_call_id", "report_number"],
+    current.service_call_number
+  ),
+  delivery_date: getValue(data, ["delivery_date", "date", "opened_date"], current.delivery_date),
+  delivery_time: getValue(data, ["delivery_time", "time", "opened_time"], current.delivery_time),
+  delivery_note_number: getValue(
+    data,
+    ["delivery_note_number", "delivery_number", "delivery_id"],
+    current.delivery_note_number
+  ),
+  order_id: getValue(data, ["order_id", "order_number"], current.order_id),
+  customer_name: getValue(data, ["customer_name", "client_name", "recipient"], current.customer_name),
+  customer_address: getValue(data, ["customer_address", "address"], current.customer_address),
+  customer_phone: getValue(data, ["customer_phone", "phone"], current.customer_phone),
+  customer_email: getValue(data, ["customer_email", "email", "client_email"], current.customer_email),
+});
 
 function buildDeliveryPdfTemplate(data, items, company) {
   const rows = items
@@ -199,6 +223,7 @@ function buildDeliveryPdfTemplate(data, items, company) {
             <div><strong>לכבוד:</strong> ${esc(data.customer_name)}</div>
             <div><strong>כתובת:</strong> ${esc(data.customer_address)}</div>
             <div><strong>טלפון:</strong> ${esc(data.customer_phone)}</div>
+            <div><strong>מייל:</strong> ${esc(data.customer_email)}</div>
           </div>
         </div>
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">
@@ -310,6 +335,7 @@ export default function DeliveryCertificateForm() {
   const [loading, setLoading] = useState(Boolean(serviceCallNumber));
   const [loadError, setLoadError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const { canvasRef, clear, getDataUrl } = useSignaturePad();
 
   useEffect(() => {
@@ -330,6 +356,25 @@ export default function DeliveryCertificateForm() {
     setLoading(true);
     setLoadError("");
 
+    const cacheKey = `${DELIVERY_PREFILL_PREFIX}${serviceCallNumber}`;
+    const shouldUsePrefillOnly = params.get("prefill") === "1";
+    const cachedPrefill = sessionStorage.getItem(cacheKey);
+
+    if (cachedPrefill) {
+      try {
+        const parsed = JSON.parse(cachedPrefill);
+        setForm((current) => mapDeliveryResponseToForm(parsed.data || parsed, current));
+        sessionStorage.removeItem(cacheKey);
+        if (shouldUsePrefillOnly) {
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.warn("נתוני תעודת המשלוח שנשמרו אינם תקינים:", err);
+        sessionStorage.removeItem(cacheKey);
+      }
+    }
+
     fetch(DELIVERY_OPEN_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -345,26 +390,7 @@ export default function DeliveryCertificateForm() {
         if (!text) return;
         const data = JSON.parse(text);
 
-        setForm((current) => ({
-          ...current,
-          company_name: getValue(data, ["company_name", "company"], current.company_name),
-          service_call_number: getValue(
-            data,
-            ["service_call_number", "service_call", "service_call_id", "report_number"],
-            current.service_call_number
-          ),
-          delivery_date: getValue(data, ["delivery_date", "date", "opened_date"], current.delivery_date),
-          delivery_time: getValue(data, ["delivery_time", "time", "opened_time"], current.delivery_time),
-          delivery_note_number: getValue(
-            data,
-            ["delivery_note_number", "delivery_number", "delivery_id"],
-            current.delivery_note_number
-          ),
-          order_id: getValue(data, ["order_id", "order_number"], current.order_id),
-          customer_name: getValue(data, ["customer_name", "client_name", "recipient"], current.customer_name),
-          customer_address: getValue(data, ["customer_address", "address"], current.customer_address),
-          customer_phone: getValue(data, ["customer_phone", "phone"], current.customer_phone),
-        }));
+        setForm((current) => mapDeliveryResponseToForm(data, current));
       })
       .catch((err) => {
         console.error("שגיאה בשליפת תעודת המשלוח:", err);
@@ -430,7 +456,12 @@ export default function DeliveryCertificateForm() {
         body: JSON.stringify(payload),
       });
 
-      alert(response.ok ? "תעודת המשלוח נשלחה בהצלחה!" : "שגיאה בשליחת תעודת המשלוח.");
+      if (response.ok) {
+        setSubmitted(true);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        alert("שגיאה בשליחת תעודת המשלוח.");
+      }
     } catch (err) {
       console.error("Error submitting delivery certificate:", err);
       alert("אירעה שגיאה בהפקת או שליחת תעודת המשלוח.");
@@ -438,6 +469,17 @@ export default function DeliveryCertificateForm() {
       setSubmitting(false);
     }
   };
+
+  if (submitted) {
+    return (
+      <ThankYouPage
+        company={company}
+        companyName={form.company_name || company.name}
+        deliveryNumber={form.delivery_note_number || form.service_call_number}
+        customerName={form.customer_name}
+      />
+    );
+  }
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-100 text-slate-900 antialiased py-6 px-4 md:py-10">
@@ -580,6 +622,16 @@ export default function DeliveryCertificateForm() {
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
               <div>
+                <label className="mb-1.5 block text-sm font-bold text-slate-700">מייל לשליחת תעודה</label>
+                <input
+                  type="email"
+                  value={form.customer_email}
+                  onChange={setField("customer_email")}
+                  placeholder="name@example.com"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+                />
+              </div>
+              <div>
                 <label className="mb-1.5 block text-sm font-bold text-slate-700">שם המאשר <span className="text-red-500">*</span></label>
                 <input
                   required
@@ -645,6 +697,38 @@ function ReadOnly({ label, value, wide = false }) {
       <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
         <div className="mb-1 text-xs font-bold text-slate-500">{label}</div>
         <div className="min-h-6 font-bold text-slate-900">{value}</div>
+      </div>
+    </div>
+  );
+}
+
+function ThankYouPage({ company, companyName, deliveryNumber, customerName }) {
+  return (
+    <div dir="rtl" className="min-h-screen bg-slate-100 px-4 py-10 text-slate-900">
+      <div className="mx-auto flex min-h-[70vh] max-w-2xl items-center">
+        <section className="w-full rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-xl">
+          <div
+            className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl text-2xl font-black text-white"
+            style={{ backgroundColor: company.accent }}
+          >
+            ✓
+          </div>
+          <h1 className="text-3xl font-black">{companyName}</h1>
+          <p className="mt-2 text-xl font-bold text-slate-700">תעודת המשלוח נשלחה בהצלחה</p>
+          <div className="mx-auto mt-6 grid max-w-md grid-cols-1 gap-3 text-right text-sm md:grid-cols-2">
+            <div className="rounded-lg bg-slate-50 p-4">
+              <div className="text-xs font-bold text-slate-500">מספר תעודה / קריאה</div>
+              <div className="mt-1 font-black">{deliveryNumber || "---"}</div>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-4">
+              <div className="text-xs font-bold text-slate-500">לכבוד</div>
+              <div className="mt-1 font-black">{customerName || "---"}</div>
+            </div>
+          </div>
+          <p className="mt-6 text-sm font-medium text-slate-500">
+            אפשר לסגור את החלון. המסמך והחתימה נשלחו למערכת.
+          </p>
+        </section>
       </div>
     </div>
   );
