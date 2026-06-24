@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
-const DELIVERY_WEBHOOK_URL = "https://hook.eu1.make.com/szndn2sqfmg0jpc53cisxb156sr47ssw";
+const DELIVERY_OPEN_WEBHOOK_URL = "https://hook.eu1.make.com/szndn2sqfmg0jpc53cisxb156sr47ssw";
+const DELIVERY_SUBMIT_WEBHOOK_URL = "https://hook.eu1.make.com/bptpucgrbjofxo3lkk2yv64vy327dxdv";
 
 const COMPANY_CONFIG = {
   airnet: {
@@ -334,7 +335,7 @@ export default function DeliveryCertificateForm() {
     setLoading(true);
     setLoadError("");
 
-    fetch(DELIVERY_WEBHOOK_URL, {
+    fetch(DELIVERY_OPEN_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -428,7 +429,7 @@ export default function DeliveryCertificateForm() {
       };
       payload.pdf_base64 = await generateDeliveryPdfBase64(payload, payload.items, company);
 
-      const response = await fetch(DELIVERY_WEBHOOK_URL, {
+      const response = await fetch(DELIVERY_SUBMIT_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
