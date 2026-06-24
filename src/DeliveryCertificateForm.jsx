@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import LoadingScreen from "./LoadingScreen.jsx";
 
 const DELIVERY_OPEN_WEBHOOK_URL = "https://hook.eu1.make.com/szndn2sqfmg0jpc53cisxb156sr47ssw";
 const DELIVERY_SUBMIT_WEBHOOK_URL = "https://hook.eu1.make.com/bptpucgrbjofxo3lkk2yv64vy327dxdv";
 const DELIVERY_PREFILL_PREFIX = "delivery-prefill:";
+const INITIAL_LOAD_TIMEOUT_MS = 6000;
 
 const COMPANY_CONFIG = {
   airnet: {
@@ -353,8 +355,16 @@ export default function DeliveryCertificateForm() {
     }
 
     let active = true;
+    let loadingTimer;
+    const finishLoading = () => {
+      if (!active) return;
+      window.clearTimeout(loadingTimer);
+      setLoading(false);
+    };
+
     setLoading(true);
     setLoadError("");
+    loadingTimer = window.setTimeout(finishLoading, INITIAL_LOAD_TIMEOUT_MS);
 
     const cacheKey = `${DELIVERY_PREFILL_PREFIX}${serviceCallNumber}`;
     const shouldUsePrefillOnly = params.get("prefill") === "1";
@@ -366,8 +376,11 @@ export default function DeliveryCertificateForm() {
         setForm((current) => mapDeliveryResponseToForm(parsed.data || parsed, current));
         sessionStorage.removeItem(cacheKey);
         if (shouldUsePrefillOnly) {
-          setLoading(false);
-          return;
+          finishLoading();
+          return () => {
+            active = false;
+            window.clearTimeout(loadingTimer);
+          };
         }
       } catch (err) {
         console.warn("נתוני תעודת המשלוח שנשמרו אינם תקינים:", err);
@@ -397,11 +410,12 @@ export default function DeliveryCertificateForm() {
         if (active) setLoadError("לא הצלחנו למשוך את נתוני תעודת המשלוח.");
       })
       .finally(() => {
-        if (active) setLoading(false);
+        finishLoading();
       });
 
     return () => {
       active = false;
+      window.clearTimeout(loadingTimer);
     };
   }, [companyCode, serviceCallNumber]);
 
@@ -477,6 +491,17 @@ export default function DeliveryCertificateForm() {
         companyName={form.company_name || company.name}
         deliveryNumber={form.delivery_note_number || form.service_call_number}
         customerName={form.customer_name}
+      />
+    );
+  }
+
+  if (loading) {
+    return (
+      <LoadingScreen
+        title="מכין תעודת משלוח"
+        message="מושך את נתוני הקריאה ותעודת המשלוח..."
+        companyName={form.company_name || company.name}
+        accentColor={company.accent}
       />
     );
   }

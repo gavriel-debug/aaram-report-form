@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import LoadingScreen from "./LoadingScreen.jsx";
 
 const OPEN_WEBHOOK_URL = "https://hook.eu1.make.com/urdv6soafdq8im88v5pa87j0jp0gjhvx";
 const TARGET_WEBHOOK = "https://hook.eu1.make.com/1ukn154fochpe0xprtqj2be2stujtjed";
 const DELIVERY_OPEN_WEBHOOK_URL = "https://hook.eu1.make.com/szndn2sqfmg0jpc53cisxb156sr47ssw";
 const DELIVERY_PREFILL_PREFIX = "delivery-prefill:";
 const DEFAULT_COMPANY_NAME = "קבוצת א.א.רם איירנט";
+const INITIAL_LOAD_TIMEOUT_MS = 6000;
 
 /* ====================== פאד חתימה (canvas מקורי, ללא ספרייה) ====================== */
 
@@ -267,6 +269,7 @@ const labelCls = "block text-sm font-bold text-slate-700 mb-1.5";
 export default function TreatmentReportForm() {
   const [form, setForm] = useState(EMPTY);
   const [actions, setActions] = useState([{ name: "", description: "" }]);
+  const [initialLoading, setInitialLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { canvasRef, clear, getDataUrl } = useSignaturePad();
 
@@ -328,6 +331,17 @@ export default function TreatmentReportForm() {
 
     if (!recordid && !tenantid) return;
 
+    let active = true;
+    let loadingTimer;
+    const finishLoading = () => {
+      if (!active) return;
+      window.clearTimeout(loadingTimer);
+      setInitialLoading(false);
+    };
+
+    setInitialLoading(true);
+    loadingTimer = window.setTimeout(finishLoading, INITIAL_LOAD_TIMEOUT_MS);
+
     fetch(OPEN_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -339,6 +353,7 @@ export default function TreatmentReportForm() {
     })
       .then((res) => res.text())
       .then((text) => {
+        if (!active) return;
         try {
           const data = JSON.parse(text);
           setForm((f) => {
@@ -356,7 +371,13 @@ export default function TreatmentReportForm() {
           console.warn("התשובה מהוובהוק אינה JSON תקין:", text);
         }
       })
-      .catch((err) => console.error("שגיאה בשליחת/קבלת הוובהוק:", err));
+      .catch((err) => console.error("שגיאה בשליחת/קבלת הוובהוק:", err))
+      .finally(finishLoading);
+
+    return () => {
+      active = false;
+      window.clearTimeout(loadingTimer);
+    };
   }, []);
 
   const updateAction = (i, key) => (e) =>
@@ -402,6 +423,16 @@ export default function TreatmentReportForm() {
       setSubmitting(false);
     }
   };
+
+  if (initialLoading) {
+    return (
+      <LoadingScreen
+        title="מכין את דו״ח הטיפול"
+        message="מושך את נתוני הקריאה מהמערכת..."
+        companyName={form.company_name || DEFAULT_COMPANY_NAME}
+      />
+    );
+  }
 
   return (
     <div dir="rtl" className="bg-slate-100 text-slate-800 antialiased py-10 px-4 md:px-0 min-h-screen">
