@@ -132,7 +132,6 @@ const createEmptyItem = () => ({
   id: `item-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   sku: "",
   name: "",
-  details: "",
   price: "",
   quantity: "",
 });
@@ -141,7 +140,6 @@ const normalizeManualItem = (item) => ({
   id: item.id,
   sku: item.sku.trim(),
   name: item.name.trim(),
-  details: item.details.trim(),
   price: item.price.trim(),
   quantity: item.quantity,
 });
@@ -169,10 +167,7 @@ function buildDeliveryPdfTemplate(data, items, company) {
         <tr>
           <td>${index + 1}</td>
           <td>${esc(item.sku)}</td>
-          <td>
-            <strong>${esc(item.name)}</strong>
-            ${item.details ? `<div style="color:#64748b;font-size:11px;margin-top:2px;">${esc(item.details)}</div>` : ""}
-          </td>
+          <td><strong>${esc(item.name)}</strong></td>
           <td>${esc(item.quantity)}</td>
           <td>${esc(item.price)}</td>
         </tr>`
@@ -403,7 +398,7 @@ export default function DeliveryCertificateForm() {
   const filledItems = () =>
     items
       .map(normalizeManualItem)
-      .filter((item) => item.sku || item.name || item.details || item.price || item.quantity);
+      .filter((item) => item.sku || item.name || item.price || item.quantity);
 
   const payloadData = () => ({
     ...form,
@@ -522,7 +517,6 @@ export default function DeliveryCertificateForm() {
                   <tr className="bg-slate-900 text-white">
                     <th className="px-4 py-3 text-right">מק״ט</th>
                     <th className="px-4 py-3 text-right">פרטים / שם הפריט</th>
-                    <th className="px-4 py-3 text-right">פירוט נוסף</th>
                     <th className="px-4 py-3 text-right">כמות</th>
                     <th className="px-4 py-3 text-right">מחיר</th>
                     <th className="px-4 py-3 text-right">פעולה</th>
@@ -545,14 +539,6 @@ export default function DeliveryCertificateForm() {
                           onChange={(event) => updateItem(item.id, "name", event.target.value)}
                           placeholder="שם הפריט"
                           className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
-                        />
-                      </td>
-                      <td className="px-3 py-3">
-                        <input
-                          value={item.details}
-                          onChange={(event) => updateItem(item.id, "details", event.target.value)}
-                          placeholder="פרטים / הערה"
-                          className="w-64 rounded-lg border border-slate-200 bg-white px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
                         />
                       </td>
                       <td className="px-3 py-3">
