@@ -29,13 +29,6 @@ const esc = (str) =>
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-const numberOrEmpty = (value) => {
-  if (value === undefined || value === null || value === "") return "";
-  return Number.isFinite(Number(value)) ? Number(value) : "";
-};
-
-const toBool = (value) => value === true || value === "true" || value === 1 || value === "1";
-
 function useSignaturePad() {
   const canvasRef = useRef(null);
   const drawingRef = useRef(false);
@@ -121,41 +114,54 @@ function useSignaturePad() {
 const emptyDelivery = {
   delivery_note_number: "",
   opened_at: "",
+  delivery_date: "",
+  delivery_time: "",
   service_call_number: "",
   order_id: "",
   customer_name: "",
   customer_address: "",
   customer_phone: "",
   company_name: "",
-  company_phone: "",
-  company_address: "",
-  company_logo_url: "",
-  show_prices: false,
   recipient_name: "",
   delivery_agent: "",
   notes: "",
 };
 
-const normalizeItem = (item, index) => {
-  const orderedQuantity =
-    numberOrEmpty(item.ordered_quantity ?? item.quantity ?? item.qty ?? item.amount) || 0;
-  const quantityToDeliver =
-    numberOrEmpty(item.quantity_to_deliver ?? item.delivery_quantity ?? item.supplied_quantity) ||
-    orderedQuantity;
+const createEmptyItem = () => ({
+  id: `item-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  sku: "",
+  name: "",
+  details: "",
+  price: "",
+  quantity: "",
+});
 
+const normalizeManualItem = (item) => ({
+  id: item.id,
+  sku: item.sku.trim(),
+  name: item.name.trim(),
+  details: item.details.trim(),
+  price: item.price.trim(),
+  quantity: item.quantity,
+});
+
+const getValue = (data, keys, fallback = "") => {
+  for (const key of keys) {
+    if (data[key] !== undefined && data[key] !== null && data[key] !== "") return data[key];
+  }
+  return fallback;
+};
+
+const getCurrentDateParts = () => {
+  const now = new Date();
   return {
-    id: item.id || item.line_id || `${index}-${item.sku || item.catalog_number || "item"}`,
-    sku: item.sku || item.catalog_number || item.item_code || "",
-    name: item.name || item.item_name || item.description || "",
-    details: item.details || item.description || "",
-    price: item.price ?? item.unit_price ?? "",
-    ordered_quantity: orderedQuantity,
-    quantity_to_deliver: quantityToDeliver,
+    opened_at: now.toISOString(),
+    delivery_date: now.toLocaleDateString("he-IL"),
+    delivery_time: now.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }),
   };
 };
 
 function buildDeliveryPdfTemplate(data, items, company) {
-  const showPrices = toBool(data.show_prices);
   const rows = items
     .map(
       (item, index) => `
@@ -166,9 +172,8 @@ function buildDeliveryPdfTemplate(data, items, company) {
             <strong>${esc(item.name)}</strong>
             ${item.details ? `<div style="color:#64748b;font-size:11px;margin-top:2px;">${esc(item.details)}</div>` : ""}
           </td>
-          ${showPrices ? `<td>${esc(item.price)}</td>` : ""}
-          <td>${esc(item.ordered_quantity)}</td>
-          <td>${esc(item.quantity_to_deliver)}</td>
+          <td>${esc(item.quantity)}</td>
+          <td>${esc(item.price)}</td>
         </tr>`
     )
     .join("");
@@ -178,14 +183,11 @@ function buildDeliveryPdfTemplate(data, items, company) {
       <div style="border-bottom:4px solid ${company.accent};padding-bottom:18px;margin-bottom:22px;display:flex;justify-content:space-between;gap:20px;align-items:center;">
         <div style="display:flex;gap:14px;align-items:center;">
           ${
-            data.company_logo_url
-              ? `<img src="${esc(data.company_logo_url)}" style="width:62px;height:62px;object-fit:contain;">`
-              : `<div style="width:62px;height:62px;border-radius:14px;background:${company.accent};color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;">${esc(company.code === "airnet" ? "A" : "רם")}</div>`
+            `<div style="width:62px;height:62px;border-radius:14px;background:${company.accent};color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;">${esc(company.code === "airnet" ? "A" : "רם")}</div>`
           }
           <div>
             <h1 style="font-size:26px;margin:0 0 5px 0;font-weight:900;">${esc(data.company_name || company.name)}</h1>
-            <div style="font-size:13px;color:#64748b;">${esc(data.company_address || company.address)}</div>
-            <div style="font-size:13px;color:#64748b;">${esc(data.company_phone || company.phone)}</div>
+            <div style="font-size:13px;color:#64748b;">תעודת משלוח דיגיטלית</div>
           </div>
         </div>
         <div style="text-align:left;">
@@ -208,7 +210,8 @@ function buildDeliveryPdfTemplate(data, items, company) {
           <div style="font-size:13px;line-height:1.75;">
             <div><strong>קריאת שירות:</strong> ${esc(data.service_call_number)}</div>
             <div><strong>מספר הזמנה:</strong> ${esc(data.order_id)}</div>
-            <div><strong>תאריך ושעה:</strong> ${esc(data.opened_at_display || data.opened_at)}</div>
+            <div><strong>תאריך:</strong> ${esc(data.delivery_date)}</div>
+            <div><strong>שעה:</strong> ${esc(data.delivery_time)}</div>
           </div>
         </div>
       </div>
@@ -219,12 +222,11 @@ function buildDeliveryPdfTemplate(data, items, company) {
             <th>#</th>
             <th>מק״ט</th>
             <th>פרטים</th>
-            ${showPrices ? "<th>מחיר</th>" : ""}
-            <th>כמות מקורית</th>
-            <th>כמות לאספקה</th>
+            <th>כמות</th>
+            <th>מחיר</th>
           </tr>
         </thead>
-        <tbody>${rows || `<tr><td colspan="${showPrices ? "6" : "5"}" style="text-align:center;color:#94a3b8;">לא התקבלו פריטים</td></tr>`}</tbody>
+        <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:#94a3b8;">לא צוינו פריטים</td></tr>'}</tbody>
       </table>
 
       ${
@@ -300,23 +302,15 @@ export default function DeliveryCertificateForm() {
     "";
   const companyCode = params.get("company") === "aaram" ? "aaram" : "airnet";
   const company = COMPANY_CONFIG[companyCode];
-  const now = useMemo(() => new Date(), []);
-  const openedAt = now.toISOString();
-  const openedAtDisplay = now.toLocaleString("he-IL", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+  const currentDateParts = useMemo(getCurrentDateParts, []);
 
   const [form, setForm] = useState({
     ...emptyDelivery,
     service_call_number: serviceCallNumber,
-    opened_at: openedAt,
-    opened_at_display: openedAtDisplay,
+    ...currentDateParts,
     company_name: company.name,
-    company_phone: company.phone,
-    company_address: company.address,
   });
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState([createEmptyItem()]);
   const [loading, setLoading] = useState(Boolean(serviceCallNumber));
   const [loadError, setLoadError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -354,24 +348,27 @@ export default function DeliveryCertificateForm() {
         if (!active) return;
         if (!text) return;
         const data = JSON.parse(text);
-        const nextItems = data.items || data.line_items || data.delivery_items || [];
 
         setForm((current) => ({
           ...current,
-          delivery_note_number: data.delivery_note_number ?? data.delivery_number ?? current.delivery_note_number,
-          order_id: data.order_id ?? data.order_number ?? current.order_id,
-          customer_name: data.customer_name ?? data.client_name ?? current.customer_name,
-          customer_address: data.customer_address ?? data.address ?? current.customer_address,
-          customer_phone: data.customer_phone ?? data.phone ?? current.customer_phone,
-          company_name: data.company_name ?? current.company_name,
-          company_phone: data.company_phone ?? current.company_phone,
-          company_address: data.company_address ?? current.company_address,
-          company_logo_url: data.company_logo_url ?? data.logo_url ?? current.company_logo_url,
-          show_prices: data.show_prices !== undefined ? toBool(data.show_prices) : current.show_prices,
-          delivery_agent: data.delivery_agent ?? data.driver_name ?? current.delivery_agent,
-          notes: data.notes ?? current.notes,
+          company_name: getValue(data, ["company_name", "company"], current.company_name),
+          service_call_number: getValue(
+            data,
+            ["service_call_number", "service_call", "service_call_id", "report_number"],
+            current.service_call_number
+          ),
+          delivery_date: getValue(data, ["delivery_date", "date", "opened_date"], current.delivery_date),
+          delivery_time: getValue(data, ["delivery_time", "time", "opened_time"], current.delivery_time),
+          delivery_note_number: getValue(
+            data,
+            ["delivery_note_number", "delivery_number", "delivery_id"],
+            current.delivery_note_number
+          ),
+          order_id: getValue(data, ["order_id", "order_number"], current.order_id),
+          customer_name: getValue(data, ["customer_name", "client_name", "recipient"], current.customer_name),
+          customer_address: getValue(data, ["customer_address", "address"], current.customer_address),
+          customer_phone: getValue(data, ["customer_phone", "phone"], current.customer_phone),
         }));
-        setItems(nextItems.map(normalizeItem));
       })
       .catch((err) => {
         console.error("שגיאה בשליפת תעודת המשלוח:", err);
@@ -386,20 +383,33 @@ export default function DeliveryCertificateForm() {
     };
   }, [companyCode, serviceCallNumber]);
 
-  const updateQuantity = (itemId, value) => {
+  const addItem = () => setItems((current) => [...current, createEmptyItem()]);
+
+  const removeItem = (itemId) => {
+    setItems((current) =>
+      current.length === 1 ? [createEmptyItem()] : current.filter((item) => item.id !== itemId)
+    );
+  };
+
+  const updateItem = (itemId, key, value) => {
     setItems((current) =>
       current.map((item) =>
-        item.id === itemId ? { ...item, quantity_to_deliver: numberOrEmpty(value) } : item
+        item.id === itemId ? { ...item, [key]: value } : item
       )
     );
   };
+
+  const filledItems = () =>
+    items
+      .map(normalizeManualItem)
+      .filter((item) => item.sku || item.name || item.details || item.price || item.quantity);
 
   const payloadData = () => ({
     ...form,
     form_type: "delivery_certificate_submit",
     company: companyCode,
     signature_base64: getDataUrl(),
-    items,
+    items: filledItems(),
   });
 
   const handleSubmit = async (event) => {
@@ -416,7 +426,7 @@ export default function DeliveryCertificateForm() {
         ...payloadData(),
         signature_base64: signatureBase64,
       };
-      payload.pdf_base64 = await generateDeliveryPdfBase64(payload, items, company);
+      payload.pdf_base64 = await generateDeliveryPdfBase64(payload, payload.items, company);
 
       const response = await fetch(DELIVERY_WEBHOOK_URL, {
         method: "POST",
@@ -439,35 +449,30 @@ export default function DeliveryCertificateForm() {
         <header className="rounded-t-2xl bg-white border border-slate-200 border-b-0 p-6 md:p-8 shadow-sm">
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
-              {form.company_logo_url ? (
-                <img src={form.company_logo_url} alt="" className="h-16 w-16 object-contain" />
-              ) : (
-                <div
-                  className="flex h-16 w-16 items-center justify-center rounded-2xl text-xl font-black text-white"
-                  style={{ backgroundColor: company.accent }}
-                >
-                  {companyCode === "airnet" ? "A" : "רם"}
-                </div>
-              )}
+              <div
+                className="flex h-16 w-16 items-center justify-center rounded-2xl text-xl font-black text-white"
+                style={{ backgroundColor: company.accent }}
+              >
+                {companyCode === "airnet" ? "A" : "רם"}
+              </div>
               <div>
                 <h1 className="text-2xl md:text-3xl font-black">{form.company_name || company.name}</h1>
                 <p className="font-medium text-slate-500">{company.subtitle}</p>
-                {(form.company_phone || form.company_address) && (
-                  <p className="mt-1 text-sm text-slate-500">
-                    {[form.company_phone, form.company_address].filter(Boolean).join(" | ")}
-                  </p>
-                )}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-sm md:min-w-72">
+            <div className="grid grid-cols-3 gap-3 text-sm md:min-w-[26rem]">
               <div className="rounded-lg bg-slate-100 p-3">
                 <div className="text-xs font-bold text-slate-500">קריאת שירות</div>
                 <div className="font-black">{form.service_call_number || "---"}</div>
               </div>
               <div className="rounded-lg bg-slate-100 p-3">
-                <div className="text-xs font-bold text-slate-500">תאריך ושעה</div>
-                <div className="font-black">{form.opened_at_display}</div>
+                <div className="text-xs font-bold text-slate-500">תאריך</div>
+                <div className="font-black">{form.delivery_date || "---"}</div>
+              </div>
+              <div className="rounded-lg bg-slate-100 p-3">
+                <div className="text-xs font-bold text-slate-500">שעה</div>
+                <div className="font-black">{form.delivery_time || "---"}</div>
               </div>
             </div>
           </div>
@@ -489,6 +494,9 @@ export default function DeliveryCertificateForm() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <ReadOnly label="מספר תעודת משלוח" value={form.delivery_note_number || "---"} />
               <ReadOnly label="מספר הזמנה" value={form.order_id || "---"} />
+              <ReadOnly label="קריאת שירות" value={form.service_call_number || "---"} />
+              <ReadOnly label="תאריך" value={form.delivery_date || "---"} />
+              <ReadOnly label="שעה" value={form.delivery_time || "---"} />
               <ReadOnly label="לכבוד" value={form.customer_name || "---"} />
               <ReadOnly label="כתובת הלקוח" value={form.customer_address || "---"} wide />
               <ReadOnly label="טלפון" value={form.customer_phone || "---"} />
@@ -496,52 +504,83 @@ export default function DeliveryCertificateForm() {
           </section>
 
           <section>
-            <div className="mb-4 border-b border-slate-100 pb-2">
+            <div className="mb-4 flex items-center justify-between gap-4 border-b border-slate-100 pb-2">
               <h2 className="text-xl font-bold">פירוט סחורה</h2>
+              <button
+                type="button"
+                onClick={addItem}
+                className="rounded-lg border-2 border-dashed border-blue-200 bg-white px-4 py-2 text-sm font-bold text-blue-600 transition hover:border-blue-400 hover:bg-blue-50"
+              >
+                + הוסף פריט
+              </button>
             </div>
 
             <div className="overflow-x-auto rounded-xl border border-slate-200">
-              <table className="w-full min-w-[720px] border-collapse text-sm">
+              <table className="w-full min-w-[920px] border-collapse text-sm">
                 <thead>
                   <tr className="bg-slate-900 text-white">
                     <th className="px-4 py-3 text-right">מק״ט</th>
                     <th className="px-4 py-3 text-right">פרטים / שם הפריט</th>
-                    {form.show_prices && <th className="px-4 py-3 text-right">מחיר</th>}
-                    <th className="px-4 py-3 text-right">כמות מקורית</th>
-                    <th className="px-4 py-3 text-right">כמות לאספקה</th>
+                    <th className="px-4 py-3 text-right">פירוט נוסף</th>
+                    <th className="px-4 py-3 text-right">כמות</th>
+                    <th className="px-4 py-3 text-right">מחיר</th>
+                    <th className="px-4 py-3 text-right">פעולה</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.length === 0 ? (
-                    <tr>
-                      <td colSpan={form.show_prices ? 5 : 4} className="px-4 py-8 text-center font-bold text-slate-400">
-                        לא התקבלו שורות פריטים
+                  {items.map((item, index) => (
+                    <tr key={item.id} className="border-t border-slate-200 odd:bg-white even:bg-slate-50">
+                      <td className="px-3 py-3">
+                        <input
+                          value={item.sku}
+                          onChange={(event) => updateItem(item.id, "sku", event.target.value)}
+                          placeholder="מק״ט"
+                          className="w-32 rounded-lg border border-slate-200 bg-white px-3 py-2 font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+                        />
+                      </td>
+                      <td className="px-3 py-3">
+                        <input
+                          value={item.name}
+                          onChange={(event) => updateItem(item.id, "name", event.target.value)}
+                          placeholder="שם הפריט"
+                          className="w-56 rounded-lg border border-slate-200 bg-white px-3 py-2 font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+                        />
+                      </td>
+                      <td className="px-3 py-3">
+                        <input
+                          value={item.details}
+                          onChange={(event) => updateItem(item.id, "details", event.target.value)}
+                          placeholder="פרטים / הערה"
+                          className="w-64 rounded-lg border border-slate-200 bg-white px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+                        />
+                      </td>
+                      <td className="px-3 py-3">
+                        <input
+                          value={item.quantity}
+                          onChange={(event) => updateItem(item.id, "quantity", event.target.value)}
+                          placeholder="כמות"
+                          className="w-24 rounded-lg border border-slate-200 bg-white px-3 py-2 font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+                        />
+                      </td>
+                      <td className="px-3 py-3">
+                        <input
+                          value={item.price}
+                          onChange={(event) => updateItem(item.id, "price", event.target.value)}
+                          placeholder="מחיר"
+                          className="w-28 rounded-lg border border-slate-200 bg-white px-3 py-2 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+                        />
+                      </td>
+                      <td className="px-3 py-3">
+                        <button
+                          type="button"
+                          onClick={() => removeItem(item.id)}
+                          className="rounded-lg px-3 py-2 text-sm font-bold text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                        >
+                          {items.length === 1 && index === 0 ? "נקה" : "מחק"}
+                        </button>
                       </td>
                     </tr>
-                  ) : (
-                    items.map((item) => (
-                      <tr key={item.id} className="border-t border-slate-200 odd:bg-white even:bg-slate-50">
-                        <td className="px-4 py-3 font-bold">{item.sku || "---"}</td>
-                        <td className="px-4 py-3">
-                          <div className="font-bold">{item.name || "---"}</div>
-                          {item.details && <div className="mt-1 text-xs text-slate-500">{item.details}</div>}
-                        </td>
-                        {form.show_prices && <td className="px-4 py-3">{item.price || "---"}</td>}
-                        <td className="px-4 py-3">{item.ordered_quantity}</td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            min="0"
-                            max={item.ordered_quantity || undefined}
-                            step="1"
-                            value={item.quantity_to_deliver}
-                            onChange={(event) => updateQuantity(item.id, event.target.value)}
-                            className="w-28 rounded-lg border border-slate-200 bg-white px-3 py-2 font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
-                          />
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                  ))}
                 </tbody>
               </table>
             </div>
