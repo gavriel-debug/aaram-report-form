@@ -13,14 +13,16 @@ const INITIAL_LOAD_TIMEOUT_MS = 6000;
 /* ====================== פאד חתימה (canvas מקורי, ללא ספרייה) ====================== */
 
 function useSignaturePad() {
-  const canvasRef = useRef(null);
+  const [canvasElement, setCanvasElement] = useState(null);
+  const canvasRef = setCanvasElement;
   const drawingRef = useRef(false);
   const hasSigRef = useRef(false);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
+    const canvas = canvasElement;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
     const resize = () => {
       const ratio = window.devicePixelRatio || 1;
@@ -73,15 +75,17 @@ function useSignaturePad() {
       canvas.removeEventListener("pointercancel", up);
       window.removeEventListener("resize", resize);
     };
-  }, []);
+  }, [canvasElement]);
 
   const clear = () => {
-    const canvas = canvasRef.current;
+    const canvas = canvasElement;
+    if (!canvas) return;
     const ctx = canvas.getContext("2d");
+    if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     hasSigRef.current = false;
   };
-  const getDataUrl = () => (hasSigRef.current ? canvasRef.current.toDataURL("image/png") : "");
+  const getDataUrl = () => (hasSigRef.current && canvasElement ? canvasElement.toDataURL("image/png") : "");
 
   return { canvasRef, clear, getDataUrl };
 }
