@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import LoadingScreen from "./LoadingScreen.jsx";
+import { getPagePath, getRouteFormType } from "./formRoutes.js";
 
 const OPEN_WEBHOOK_URL = "https://hook.eu1.make.com/urdv6soafdq8im88v5pa87j0jp0gjhvx";
 const TARGET_WEBHOOK = "https://hook.eu1.make.com/1ukn154fochpe0xprtqj2be2stujtjed";
@@ -308,9 +309,7 @@ export default function TreatmentReportForm() {
   const [initialLoading, setInitialLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { canvasRef, clear, getDataUrl } = useSignaturePad();
-  const formType =
-    new URLSearchParams(window.location.search).get("form") ||
-    new URLSearchParams(window.location.search).get("type");
+  const formType = getRouteFormType();
   const isCompressorReport = COMPRESSOR_REPORT_FORM_TYPES.has(formType);
   const equipmentSectionTitle = isCompressorReport
     ? "פרטי מדחס"
@@ -331,9 +330,9 @@ export default function TreatmentReportForm() {
     const nextUrl = new URL(window.location.href);
     const company = params.get("company");
 
+    nextUrl.pathname = getPagePath("delivery");
     nextUrl.search = "";
     nextUrl.hash = "";
-    nextUrl.searchParams.set("form", "delivery");
     nextUrl.searchParams.set("service_call", serviceCallNumber || params.get("recordid") || "");
     if (company) nextUrl.searchParams.set("company", company);
     if (hasPrefill) nextUrl.searchParams.set("prefill", "1");

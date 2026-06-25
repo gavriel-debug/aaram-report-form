@@ -1,19 +1,9 @@
 import DeliveryCertificateForm from "./DeliveryCertificateForm.jsx";
 import TreatmentReportForm from "./TreatmentReportForm.jsx";
-
-const DELIVERY_FORM_TYPES = new Set(["delivery", "delivery-certificate"]);
-const REPORT_FORM_TYPES = new Set([
-  "report",
-  "treatment-report",
-  "report-copy",
-  "treatment-report-copy",
-  "compressor-report",
-  "report-compressor",
-]);
+import { DELIVERY_FORM_TYPES, REPORT_FORM_TYPES, getRouteFormType } from "./formRoutes.js";
 
 export default function App() {
-  const params = new URLSearchParams(window.location.search);
-  const formType = params.get("form") || params.get("type");
+  const formType = getRouteFormType();
 
   if (DELIVERY_FORM_TYPES.has(formType)) {
     return <DeliveryCertificateForm />;
