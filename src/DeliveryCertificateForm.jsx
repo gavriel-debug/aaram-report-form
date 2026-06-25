@@ -12,6 +12,10 @@ const COMPANY_CONFIG = {
   airnet: {
     code: "airnet",
     name: "קבוצת א.א.רם איירנט",
+    brandName: "איירנט",
+    legalLine: "טכנולוגיות אויר דחוס בע״מ",
+    postalLine: "ת.ד. 626, כרכור 37100",
+    contactLine: "נייד: 050-5960110, טל: 04-6372797, פקס: 04-6272414",
     subtitle: "תעודת משלוח דיגיטלית",
     accent: "#2563eb",
     phone: "",
@@ -20,6 +24,10 @@ const COMPANY_CONFIG = {
   aaram: {
     code: "aaram",
     name: "קבוצת א.א.רם",
+    brandName: "א.א.רם",
+    legalLine: "קבוצת א.א.רם בע״מ",
+    postalLine: "ת.ד. 214, בנימינה",
+    contactLine: "טלפון: 04-6377329, פקס: 04-6272414",
     subtitle: "תעודת משלוח דיגיטלית",
     accent: "#0f766e",
     phone: "",
@@ -190,91 +198,167 @@ const mapDeliveryResponseToForm = (data, current) => ({
 });
 
 function buildDeliveryPdfTemplate(data, items, company) {
+  const ink = "#1f3f93";
+  const red = "#d72836";
+  const deliveryNumber = data.delivery_note_number || data.service_call_number || "";
+  const brandName = company.brandName || data.company_name || company.name;
+  const minimumRows = 13;
+  const tableRows = Array.from({ length: Math.max(items.length, minimumRows) }, (_, index) => items[index] || {});
   const rows = items
-    .map(
-      (item, index) => `
+    .length
+    ? tableRows
+        .map(
+          (item) => `
         <tr>
-          <td>${index + 1}</td>
-          <td>${esc(item.sku)}</td>
-          <td><strong>${esc(item.name)}</strong></td>
           <td>${esc(item.quantity)}</td>
+          <td>${esc(item.sku)}</td>
+          <td>${item.name ? `<strong>${esc(item.name)}</strong>` : ""}</td>
           <td>${esc(item.price)}</td>
         </tr>`
-    )
-    .join("");
+        )
+        .join("")
+    : tableRows
+        .map(
+          () => `
+        <tr>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>`
+        )
+        .join("");
 
   return `
-    <div dir="rtl" style="width:794px;background:#fff;color:#111827;font-family:'Heebo',Arial,sans-serif;padding:34px;box-sizing:border-box;">
-      <div style="border-bottom:4px solid ${company.accent};padding-bottom:18px;margin-bottom:22px;display:flex;justify-content:space-between;gap:20px;align-items:center;">
-        <div style="display:flex;gap:14px;align-items:center;">
-          ${
-            `<div style="width:62px;height:62px;border-radius:14px;background:${company.accent};color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;">${esc(company.code === "airnet" ? "A" : "רם")}</div>`
-          }
-          <div>
-            <h1 style="font-size:26px;margin:0 0 5px 0;font-weight:900;">${esc(data.company_name || company.name)}</h1>
-            <div style="font-size:13px;color:#64748b;">תעודת משלוח דיגיטלית</div>
-          </div>
+    <div dir="rtl" style="width:794px;min-height:1123px;background:#fff;color:${ink};font-family:'Heebo',Arial,sans-serif;padding:44px 54px 34px;box-sizing:border-box;">
+      <header style="position:relative;margin-bottom:28px;border-bottom:2px solid ${ink};padding-bottom:12px;text-align:center;">
+        <div style="position:absolute;right:0;top:6px;width:92px;height:58px;border:3px solid ${ink};border-radius:50%;opacity:.95;">
+          <div style="position:absolute;right:13px;top:12px;width:52px;height:18px;border-top:5px solid ${ink};border-radius:50%;transform:rotate(-13deg);"></div>
+          <div style="position:absolute;right:17px;top:29px;width:50px;height:10px;background:${ink};border-radius:50%;transform:rotate(-13deg);"></div>
         </div>
-        <div style="text-align:left;">
-          <div style="font-size:28px;font-weight:900;color:${company.accent};">תעודת משלוח</div>
-          <div style="font-size:13px;color:#64748b;margin-top:4px;">מס׳ ${esc(data.delivery_note_number || data.service_call_number)}</div>
-        </div>
-      </div>
 
-      <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-bottom:20px;">
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">
-          <h2 style="font-size:15px;margin:0 0 10px 0;color:#0f172a;">פרטי לקוח</h2>
-          <div style="font-size:13px;line-height:1.75;">
-            <div><strong>לכבוד:</strong> ${esc(data.customer_name)}</div>
-            <div><strong>כתובת:</strong> ${esc(data.customer_address)}</div>
-            <div><strong>טלפון:</strong> ${esc(data.customer_phone)}</div>
-            <div><strong>מייל:</strong> ${esc(data.customer_email)}</div>
-          </div>
+        <div style="font-size:42px;line-height:1;font-weight:900;letter-spacing:0;color:${ink};">
+          ${esc(brandName)}
         </div>
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">
-          <h2 style="font-size:15px;margin:0 0 10px 0;color:#0f172a;">פרטי מסמך</h2>
-          <div style="font-size:13px;line-height:1.75;">
-            <div><strong>קריאת שירות:</strong> ${esc(data.service_call_number)}</div>
-            <div><strong>מספר הזמנה:</strong> ${esc(data.order_id)}</div>
-            <div><strong>תאריך:</strong> ${esc(data.delivery_date)}</div>
-            <div><strong>שעה:</strong> ${esc(data.delivery_time)}</div>
-          </div>
+        <div style="margin-top:4px;font-size:21px;font-weight:900;color:${ink};">
+          ${esc(company.legalLine || data.company_name || company.name)}
         </div>
-      </div>
+        <div style="margin-top:6px;font-size:13px;font-weight:800;color:${ink};display:flex;justify-content:center;gap:18px;flex-wrap:wrap;">
+          <span>${esc(company.postalLine || "")}</span>
+          <span>${esc(company.contactLine || "")}</span>
+        </div>
+      </header>
 
-      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:12px;">
+      <section style="display:grid;grid-template-columns:1fr 150px 1fr;align-items:start;margin-bottom:18px;color:${ink};">
+        <div style="font-size:17px;font-weight:900;text-align:right;padding-top:18px;">
+          <div style="display:grid;grid-template-columns:60px 1fr;gap:8px;align-items:end;margin-bottom:13px;">
+            <span>שעה:</span>
+            <span style="border-bottom:2px dotted ${ink};min-height:22px;text-align:center;color:#111827;">${esc(data.delivery_time)}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:60px 1fr;gap:8px;align-items:end;margin-bottom:13px;">
+            <span>תאריך:</span>
+            <span style="border-bottom:2px dotted ${ink};min-height:22px;text-align:center;color:#111827;">${esc(data.delivery_date)}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:92px 1fr;gap:8px;align-items:end;">
+            <span>מס׳ הזמנה:</span>
+            <span style="border-bottom:2px dotted ${ink};min-height:22px;text-align:center;color:#111827;">${esc(data.order_id)}</span>
+          </div>
+        </div>
+
+        <div style="text-align:center;padding-top:54px;font-size:34px;line-height:1;font-weight:900;letter-spacing:3px;color:${red};">
+          ${esc(deliveryNumber)}
+        </div>
+
+        <div style="text-align:right;padding-top:34px;">
+          <div style="font-size:31px;font-weight:900;color:${ink};">תעודת משלוח</div>
+          <div style="margin-top:14px;font-size:13px;font-weight:800;color:${ink};">קריאת שירות: <span style="color:#111827;">${esc(data.service_call_number)}</span></div>
+        </div>
+      </section>
+
+      <section style="font-size:17px;font-weight:900;margin-bottom:16px;color:${ink};">
+        <div style="display:grid;grid-template-columns:70px 1fr 42px 230px;gap:8px;align-items:end;margin-bottom:13px;">
+          <span>לכבוד:</span>
+          <span style="border-bottom:2px dotted ${ink};min-height:24px;color:#111827;padding:0 8px;">${esc(data.customer_name)}</span>
+          <span>טל׳:</span>
+          <span style="border-bottom:2px dotted ${ink};min-height:24px;color:#111827;padding:0 8px;">${esc(data.customer_phone)}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:70px 1fr;gap:8px;align-items:end;">
+          <span>כתובת:</span>
+          <span style="border-bottom:2px dotted ${ink};min-height:24px;color:#111827;padding:0 8px;">${esc(data.customer_address)}</span>
+        </div>
+      </section>
+
+      <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:14px;color:${ink};table-layout:fixed;">
+        <colgroup>
+          <col style="width:10%;">
+          <col style="width:28%;">
+          <col style="width:42%;">
+          <col style="width:20%;">
+        </colgroup>
         <thead>
-          <tr style="background:${company.accent};color:#fff;">
-            <th>#</th>
+          <tr>
+            <th>כמות</th>
             <th>מק״ט</th>
             <th>פרטים</th>
-            <th>כמות</th>
             <th>מחיר</th>
           </tr>
         </thead>
-        <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:#94a3b8;">לא צוינו פריטים</td></tr>'}</tbody>
+        <tbody>${rows}</tbody>
       </table>
 
       ${
         data.notes
-          ? `<div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:18px;font-size:13px;"><strong>הערות:</strong><div style="white-space:pre-wrap;margin-top:4px;">${esc(data.notes)}</div></div>`
+          ? `<div style="border:2px solid ${ink};border-top:0;padding:10px 12px;font-size:13px;color:#111827;min-height:38px;"><strong style="color:${ink};">הערות:</strong> ${esc(data.notes)}</div>`
           : ""
       }
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px;">
-        <div style="border:1px solid #e2e8f0;border-radius:12px;padding:14px;min-height:110px;">
-          <div style="font-size:13px;margin-bottom:8px;"><strong>שם מקבל הסחורה:</strong> ${esc(data.recipient_name)}</div>
-          <div style="font-size:13px;"><strong>נציג מוסר:</strong> ${esc(data.delivery_agent)}</div>
+      <footer style="margin-top:24px;font-size:16px;font-weight:900;color:${ink};">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:end;margin-bottom:14px;">
+          <div style="display:grid;grid-template-columns:92px 1fr;gap:8px;align-items:end;">
+            <span>שם החותם:</span>
+            <span style="border-bottom:2px dotted ${ink};min-height:28px;color:#111827;padding:0 8px;">${esc(data.delivery_agent)}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:92px 1fr;gap:8px;align-items:end;">
+            <span>שם המאשר:</span>
+            <span style="border-bottom:2px dotted ${ink};min-height:28px;color:#111827;padding:0 8px;">${esc(data.recipient_name)}</span>
+          </div>
         </div>
-        <div style="border:2px dashed #cbd5e1;border-radius:12px;padding:12px;min-height:110px;text-align:center;">
-          <div style="font-size:12px;color:#64748b;text-align:right;margin-bottom:8px;font-weight:700;">חתימת המאשר</div>
-          ${data.signature_base64 ? `<img src="${data.signature_base64}" style="max-height:76px;max-width:90%;object-fit:contain;">` : ""}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:end;">
+          <div style="display:grid;grid-template-columns:62px 1fr;gap:8px;align-items:end;">
+            <span>כתובת:</span>
+            <span style="border-bottom:2px dotted ${ink};min-height:28px;color:#111827;padding:0 8px;">${esc(data.customer_address)}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:112px 1fr;gap:8px;align-items:end;">
+            <span>חתימת המאשר:</span>
+            <span style="border-bottom:2px dotted ${ink};min-height:44px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:2px;">
+              ${data.signature_base64 ? `<img src="${data.signature_base64}" style="max-height:42px;max-width:190px;object-fit:contain;">` : ""}
+            </span>
+          </div>
         </div>
-      </div>
+      </footer>
     </div>
     <style>
-      th, td { border: 1px solid #e2e8f0; padding: 8px 9px; text-align: right; vertical-align: top; }
-      tbody tr:nth-child(even) { background: #f8fafc; }
+      th, td {
+        border: 2px solid ${ink};
+        padding: 7px 9px;
+        text-align: center;
+        vertical-align: middle;
+        height: 29px;
+        box-sizing: border-box;
+      }
+      th {
+        font-size: 16px;
+        font-weight: 900;
+        color: ${ink};
+        background: #ffffff;
+      }
+      td {
+        color: #111827;
+        font-size: 13px;
+      }
+      td:nth-child(3), th:nth-child(3) {
+        text-align: center;
+      }
     </style>
   `;
 }
