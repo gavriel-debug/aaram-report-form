@@ -322,6 +322,7 @@ export default function TreatmentReportForm() {
     : REPORT_COPY_FORM_TYPES.has(formType)
       ? "dryer"
       : "filter";
+  const reportOpenId = isCompressorReport ? 3 : REPORT_COPY_FORM_TYPES.has(formType) ? 2 : 1;
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -396,6 +397,7 @@ export default function TreatmentReportForm() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        id: reportOpenId,
         recordid,
         tenantid,
         tanantid: tenantid,
