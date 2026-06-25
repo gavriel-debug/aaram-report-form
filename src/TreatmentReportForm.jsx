@@ -140,7 +140,7 @@ function buildPdfTemplate(d) {
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:25px;">
       <div>
-        <h2 style="font-size:16px;font-weight:800;color:#2563eb;border-bottom:2px solid #f1f5f9;padding-bottom:6px;margin:0 0 12px 0;">פרטי מסנן קו</h2>
+        <h2 style="font-size:16px;font-weight:800;color:#2563eb;border-bottom:2px solid #f1f5f9;padding-bottom:6px;margin:0 0 12px 0;">${esc(d.equipment_section_title || "פרטי מסנן קו")}</h2>
         <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
           <div style="padding:8px 0;border-bottom:1px solid #f1f5f9;"><strong>יצרן:</strong> ${esc(d.manufacturer)}</div>
           <div style="padding:8px 0;border-bottom:1px solid #f1f5f9;"><strong>דגם:</strong> ${esc(d.model)}</div>
@@ -271,6 +271,7 @@ const inputCls =
 const inputWhiteCls =
   "w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 outline-none transition-all";
 const labelCls = "block text-sm font-bold text-slate-700 mb-1.5";
+const REPORT_COPY_FORM_TYPES = new Set(["report-copy", "treatment-report-copy"]);
 
 export default function TreatmentReportForm() {
   const [form, setForm] = useState(EMPTY);
@@ -278,6 +279,10 @@ export default function TreatmentReportForm() {
   const [initialLoading, setInitialLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { canvasRef, clear, getDataUrl } = useSignaturePad();
+  const formType =
+    new URLSearchParams(window.location.search).get("form") ||
+    new URLSearchParams(window.location.search).get("type");
+  const equipmentSectionTitle = REPORT_COPY_FORM_TYPES.has(formType) ? "פרטי מייבש" : "פרטי מסנן קו";
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -408,7 +413,10 @@ export default function TreatmentReportForm() {
           .map((a) => ({ name: a.name || "---", description: a.description || "---" })),
       };
 
-      payload.pdf_base64 = await generatePdfBase64(payload);
+      payload.pdf_base64 = await generatePdfBase64({
+        ...payload,
+        equipment_section_title: equipmentSectionTitle,
+      });
 
       const response = await fetch(TARGET_WEBHOOK, {
         method: "POST",
@@ -485,9 +493,9 @@ export default function TreatmentReportForm() {
           </section>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-            {/* מסנן קו */}
+            {/* פרטי ציוד */}
             <section>
-              <h2 className="text-xl font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">פרטי מסנן קו</h2>
+              <h2 className="text-xl font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">{equipmentSectionTitle}</h2>
               <div className="space-y-4">
                 <div><label className={labelCls}>יצרן</label><input value={form.manufacturer} onChange={set("manufacturer")} placeholder="לדוג': Ultrafilter" className={inputCls} /></div>
                 <div><label className={labelCls}>דגם</label><input value={form.model} onChange={set("model")} placeholder="לדוג': MF 20/30" className={inputCls} /></div>
