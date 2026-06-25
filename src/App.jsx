@@ -2,7 +2,14 @@ import DeliveryCertificateForm from "./DeliveryCertificateForm.jsx";
 import TreatmentReportForm from "./TreatmentReportForm.jsx";
 
 const DELIVERY_FORM_TYPES = new Set(["delivery", "delivery-certificate"]);
-const REPORT_FORM_TYPES = new Set(["report", "treatment-report", "report-copy", "treatment-report-copy"]);
+const REPORT_FORM_TYPES = new Set([
+  "report",
+  "treatment-report",
+  "report-copy",
+  "treatment-report-copy",
+  "compressor-report",
+  "report-compressor",
+]);
 
 export default function App() {
   const params = new URLSearchParams(window.location.search);

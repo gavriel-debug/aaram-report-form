@@ -145,18 +145,41 @@ function buildPdfTemplate(d) {
           <div style="padding:8px 0;border-bottom:1px solid #f1f5f9;"><strong>יצרן:</strong> ${esc(d.manufacturer)}</div>
           <div style="padding:8px 0;border-bottom:1px solid #f1f5f9;"><strong>דגם:</strong> ${esc(d.model)}</div>
           <div style="padding:8px 0;border-bottom:1px solid #f1f5f9;"><strong>מספר סידורי:</strong> ${esc(d.serial_number)}</div>
+          ${
+            d.report_variant === "compressor"
+              ? `<div style="padding:8px 0;border-bottom:1px solid #f1f5f9;"><strong>מונה:</strong> ${esc(d.meter_reading)}</div>`
+              : ""
+          }
         </div>
       </div>
       <div>
         <h2 style="font-size:16px;font-weight:800;color:#2563eb;border-bottom:2px solid #f1f5f9;padding-bottom:6px;margin:0 0 12px 0;">נתוני מכונה וחדר</h2>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;font-size:13px;">
-          <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>לחץ עבודה:</strong> ${esc(d.work_pressure)}</div>
-          <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>דליפות אויר:</strong> ${esc(d.air_leaks)}</div>
-          <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>טמפ' עבודה:</strong> ${esc(d.work_temp)}</div>
-          <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>נקיון חדר:</strong> ${esc(d.room_cleanliness)}</div>
-          <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>טמפ' בחדר:</strong> ${esc(d.room_temp)}</div>
-          <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>בדיקת מייבש:</strong> ${esc(d.dryer_check)}</div>
-        </div>
+        ${
+          d.report_variant === "compressor"
+            ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;font-size:13px;">
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                  <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>מצב מפריד:</strong> ${esc(d.separator_condition)}</div>
+                  <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>לחץ עבודה:</strong> ${esc(d.work_pressure)}</div>
+                  <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>טמפרטורת עבודה:</strong> ${esc(d.work_temp)}</div>
+                  <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>טמפ בחדר:</strong> ${esc(d.room_temp)}</div>
+                  <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>בדיקת מייבש:</strong> ${esc(d.dryer_check)}</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                  <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>גובה שמן:</strong> ${esc(d.oil_level)}</div>
+                  <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>נזילות שמן:</strong> ${esc(d.oil_leaks)}</div>
+                  <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>ניקיון רדיאטור:</strong> ${esc(d.radiator_cleanliness)}</div>
+                  <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>ניקיון חדר:</strong> ${esc(d.room_cleanliness)}</div>
+                </div>
+              </div>`
+            : `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;font-size:13px;">
+                <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>לחץ עבודה:</strong> ${esc(d.work_pressure)}</div>
+                <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>דליפות אויר:</strong> ${esc(d.air_leaks)}</div>
+                <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>טמפ' עבודה:</strong> ${esc(d.work_temp)}</div>
+                <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>נקיון חדר:</strong> ${esc(d.room_cleanliness)}</div>
+                <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>טמפ' בחדר:</strong> ${esc(d.room_temp)}</div>
+                <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;"><strong>בדיקת מייבש:</strong> ${esc(d.dryer_check)}</div>
+              </div>`
+        }
       </div>
     </div>
 
@@ -253,9 +276,14 @@ const EMPTY = {
   manufacturer: "",
   model: "",
   serial_number: "",
+  meter_reading: "",
+  separator_condition: "",
   work_pressure: "",
   air_leaks: "לא",
   work_temp: "",
+  oil_level: "",
+  oil_leaks: "לא",
+  radiator_cleanliness: "תקין",
   room_cleanliness: "תקין",
   room_temp: "תקין",
   dryer_check: "תקין",
@@ -272,6 +300,7 @@ const inputWhiteCls =
   "w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 outline-none transition-all";
 const labelCls = "block text-sm font-bold text-slate-700 mb-1.5";
 const REPORT_COPY_FORM_TYPES = new Set(["report-copy", "treatment-report-copy"]);
+const COMPRESSOR_REPORT_FORM_TYPES = new Set(["compressor-report", "report-compressor"]);
 
 export default function TreatmentReportForm() {
   const [form, setForm] = useState(EMPTY);
@@ -282,7 +311,17 @@ export default function TreatmentReportForm() {
   const formType =
     new URLSearchParams(window.location.search).get("form") ||
     new URLSearchParams(window.location.search).get("type");
-  const equipmentSectionTitle = REPORT_COPY_FORM_TYPES.has(formType) ? "פרטי מייבש" : "פרטי מסנן קו";
+  const isCompressorReport = COMPRESSOR_REPORT_FORM_TYPES.has(formType);
+  const equipmentSectionTitle = isCompressorReport
+    ? "פרטי מדחס"
+    : REPORT_COPY_FORM_TYPES.has(formType)
+      ? "פרטי מייבש"
+      : "פרטי מסנן קו";
+  const reportVariant = isCompressorReport
+    ? "compressor"
+    : REPORT_COPY_FORM_TYPES.has(formType)
+      ? "dryer"
+      : "filter";
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -372,7 +411,9 @@ export default function TreatmentReportForm() {
             [
               "company_name", "report_number", "treatment_type", "client_name", "client_id",
               "address", "phone", "customer_email", "approver", "manufacturer", "model",
-              "serial_number", "call_nature",
+              "serial_number", "meter_reading", "separator_condition", "work_pressure",
+              "air_leaks", "work_temp", "oil_level", "oil_leaks", "radiator_cleanliness",
+              "room_cleanliness", "room_temp", "dryer_check", "call_nature",
             ].forEach((k) => {
               if (data[k] !== undefined && data[k] !== null && data[k] !== "") next[k] = data[k];
             });
@@ -407,6 +448,8 @@ export default function TreatmentReportForm() {
       );
       const payload = {
         ...withDefaults,
+        report_variant: reportVariant,
+        equipment_section_title: equipmentSectionTitle,
         signature_base64: getDataUrl(),
         actions: actions
           .filter((a) => a.name || a.description)
@@ -416,6 +459,7 @@ export default function TreatmentReportForm() {
       payload.pdf_base64 = await generatePdfBase64({
         ...payload,
         equipment_section_title: equipmentSectionTitle,
+        report_variant: reportVariant,
       });
 
       const response = await fetch(TARGET_WEBHOOK, {
@@ -500,28 +544,57 @@ export default function TreatmentReportForm() {
                 <div><label className={labelCls}>יצרן</label><input value={form.manufacturer} onChange={set("manufacturer")} placeholder="לדוג': Ultrafilter" className={inputCls} /></div>
                 <div><label className={labelCls}>דגם</label><input value={form.model} onChange={set("model")} placeholder="לדוג': MF 20/30" className={inputCls} /></div>
                 <div><label className={labelCls}>מספר סידורי</label><input value={form.serial_number} onChange={set("serial_number")} className={inputCls} /></div>
+                {isCompressorReport && (
+                  <div><label className={labelCls}>מונה</label><input value={form.meter_reading} onChange={set("meter_reading")} placeholder="קריאת מונה" className={inputCls} /></div>
+                )}
               </div>
             </section>
 
             {/* נתוני מכונה וחדר */}
             <section>
               <h2 className="text-xl font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">נתוני מכונה וחדר</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className={labelCls}>לחץ עבודה</label><input value={form.work_pressure} onChange={set("work_pressure")} className={inputCls} /></div>
-                <div><label className={labelCls}>דליפות אויר</label>
-                  <select value={form.air_leaks} onChange={set("air_leaks")} className={inputCls + " appearance-none"}><option>לא</option><option>כן</option></select>
+              {isCompressorReport ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-4">
+                    <div><label className={labelCls}>מצב מפריד</label><input value={form.separator_condition} onChange={set("separator_condition")} className={inputCls} /></div>
+                    <div><label className={labelCls}>לחץ עבודה</label><input value={form.work_pressure} onChange={set("work_pressure")} className={inputCls} /></div>
+                    <div><label className={labelCls}>טמפרטורת עבודה</label><input value={form.work_temp} onChange={set("work_temp")} placeholder="°C" className={inputCls} /></div>
+                    <div><label className={labelCls}>טמפ בחדר</label><input value={form.room_temp} onChange={set("room_temp")} placeholder="°C" className={inputCls} /></div>
+                    <div><label className={labelCls}>בדיקת מייבש</label>
+                      <select value={form.dryer_check} onChange={set("dryer_check")} className={inputCls + " appearance-none"}><option>תקין</option><option>לא תקין</option></select>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div><label className={labelCls}>גובה שמן</label><input value={form.oil_level} onChange={set("oil_level")} className={inputCls} /></div>
+                    <div><label className={labelCls}>נזילות שמן</label>
+                      <select value={form.oil_leaks} onChange={set("oil_leaks")} className={inputCls + " appearance-none"}><option>לא</option><option>כן</option></select>
+                    </div>
+                    <div><label className={labelCls}>ניקיון רדיאטור</label>
+                      <select value={form.radiator_cleanliness} onChange={set("radiator_cleanliness")} className={inputCls + " appearance-none"}><option>תקין</option><option>לא תקין</option></select>
+                    </div>
+                    <div><label className={labelCls}>ניקיון חדר</label>
+                      <select value={form.room_cleanliness} onChange={set("room_cleanliness")} className={inputCls + " appearance-none"}><option>תקין</option><option>לא תקין</option></select>
+                    </div>
+                  </div>
                 </div>
-                <div><label className={labelCls}>טמפ' עבודה</label><input value={form.work_temp} onChange={set("work_temp")} placeholder="°C" className={inputCls} /></div>
-                <div><label className={labelCls}>נקיון חדר</label>
-                  <select value={form.room_cleanliness} onChange={set("room_cleanliness")} className={inputCls + " appearance-none"}><option>תקין</option><option>לא תקין</option></select>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className={labelCls}>לחץ עבודה</label><input value={form.work_pressure} onChange={set("work_pressure")} className={inputCls} /></div>
+                  <div><label className={labelCls}>דליפות אויר</label>
+                    <select value={form.air_leaks} onChange={set("air_leaks")} className={inputCls + " appearance-none"}><option>לא</option><option>כן</option></select>
+                  </div>
+                  <div><label className={labelCls}>טמפ' עבודה</label><input value={form.work_temp} onChange={set("work_temp")} placeholder="°C" className={inputCls} /></div>
+                  <div><label className={labelCls}>נקיון חדר</label>
+                    <select value={form.room_cleanliness} onChange={set("room_cleanliness")} className={inputCls + " appearance-none"}><option>תקין</option><option>לא תקין</option></select>
+                  </div>
+                  <div><label className={labelCls}>טמפ' בחדר</label>
+                    <select value={form.room_temp} onChange={set("room_temp")} className={inputCls + " appearance-none"}><option>תקין</option><option>לא תקין</option></select>
+                  </div>
+                  <div><label className={labelCls}>בדיקת מייבש</label>
+                    <select value={form.dryer_check} onChange={set("dryer_check")} className={inputCls + " appearance-none"}><option>תקין</option><option>לא תקין</option></select>
+                  </div>
                 </div>
-                <div><label className={labelCls}>טמפ' בחדר</label>
-                  <select value={form.room_temp} onChange={set("room_temp")} className={inputCls + " appearance-none"}><option>תקין</option><option>לא תקין</option></select>
-                </div>
-                <div><label className={labelCls}>בדיקת מייבש</label>
-                  <select value={form.dryer_check} onChange={set("dryer_check")} className={inputCls + " appearance-none"}><option>תקין</option><option>לא תקין</option></select>
-                </div>
-              </div>
+              )}
             </section>
           </div>
 
